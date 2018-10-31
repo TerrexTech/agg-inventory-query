@@ -36,7 +36,7 @@ else
 fi
 
 echo "Waiting additional time for Cassandra to be ready."
-add_wait=20
+add_wait=30
 cur_add_wait=0
 while (( ++cur_add_wait != add_wait ))
 do
@@ -62,4 +62,4 @@ sleep 5
 docker ps -a
 
 docker-compose up --build --force-recreate agg-inventory-query-test
-exit $?
+docker ps -a

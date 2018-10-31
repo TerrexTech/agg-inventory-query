@@ -178,7 +178,6 @@ var _ = Describe("InventoryAggregate", func() {
 
 					result := []inventory.Inventory{}
 					err = json.Unmarshal(kr.Result, &result)
-					log.Println(err)
 					Expect(err).ToNot(HaveOccurred())
 
 					for _, r := range result {
