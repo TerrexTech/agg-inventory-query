@@ -62,4 +62,4 @@ sleep 5
 docker ps -a
 
 docker-compose up --build --force-recreate agg-inventory-query-test
-exit $?
+docker ps -a
