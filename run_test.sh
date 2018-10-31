@@ -36,7 +36,7 @@ else
 fi
 
 echo "Waiting additional time for Cassandra to be ready."
-add_wait=20
+add_wait=30
 cur_add_wait=0
 while (( ++cur_add_wait != add_wait ))
 do

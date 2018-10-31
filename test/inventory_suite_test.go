@@ -61,7 +61,6 @@ func TestInventory(t *testing.T) {
 }
 
 var _ = Describe("InventoryAggregate", func() {
-	var aggregateID int8 = 2
 	var (
 		kafkaBrokers          []string
 		eventsTopic           string
@@ -93,7 +92,6 @@ var _ = Describe("InventoryAggregate", func() {
 			Name:         "test-name",
 			Origin:       "test-origin",
 			Price:        13.4,
-			Quantity:     45,
 			RSCustomerID: rsCustomerID,
 			SalePrice:    12.23,
 			SKU:          "test-sku",
@@ -114,7 +112,7 @@ var _ = Describe("InventoryAggregate", func() {
 		mockEvent = &model.Event{
 			Action:        "insert",
 			CorrelationID: cid,
-			AggregateID:   aggregateID,
+			AggregateID:   inventory.AggregateID,
 			Data:          marshalInv,
 			Timestamp:     time.Now(),
 			UserUUID:      uid,
@@ -180,7 +178,6 @@ var _ = Describe("InventoryAggregate", func() {
 
 					result := []inventory.Inventory{}
 					err = json.Unmarshal(kr.Result, &result)
-					log.Println(err)
 					Expect(err).ToNot(HaveOccurred())
 
 					for _, r := range result {

@@ -49,7 +49,7 @@ services:
       - ./.env.esquery
 
   agg-inventory-cmd:
-    image: terrextech/agg-inventory-cmd:v1.0.0
+    image: terrextech/agg-inventory-cmd:v1.1.0
     env_file:
       - ./.env.agg-inventory-cmd
 
