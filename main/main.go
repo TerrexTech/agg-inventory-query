@@ -82,7 +82,7 @@ func main() {
 
 	for {
 		select {
-		case <-eventPoll.RoutinesCtx().Done():
+		case <-eventPoll.Wait():
 			err = errors.New("service-context closed")
 			log.Fatalln(err)
 
