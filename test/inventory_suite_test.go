@@ -290,7 +290,10 @@ var _ = Describe("InventoryAggregate", func() {
 
 			Byf("Creating query args")
 			// Get 3 records
-			marshalQuery, err := json.Marshal(3)
+			query := &inventory.CountQuery{
+				Count: 2,
+			}
+			marshalQuery, err := json.Marshal(query)
 			Expect(err).ToNot(HaveOccurred())
 
 			Byf("Creating query MockEvent")
@@ -335,7 +338,6 @@ var _ = Describe("InventoryAggregate", func() {
 					err = json.Unmarshal(kr.Result, &result)
 					Expect(err).ToNot(HaveOccurred())
 					Expect(result).ToNot(BeEmpty())
-					log.Println(string(kr.Result))
 					return true
 				}
 				return false
