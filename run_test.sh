@@ -44,6 +44,8 @@ do
   sleep 1
 done
 
+docker-compose up -d --build --force-recreate etcd
+
 docker-compose up -d --build --force-recreate go-eventpersistence
 echo "Waiting for go-eventpersistence to initialize"
 sleep 5
@@ -61,5 +63,10 @@ sleep 5
 
 docker ps -a
 
-docker-compose up --build --force-recreate agg-inventory-query-test
-docker ps -a
+docker-compose up --exit-code-from agg-inventory-query-test
+rc=$?
+if [[ $rc != 0 ]]
+  docker ps -a
+  then exit $rc
+fi
+

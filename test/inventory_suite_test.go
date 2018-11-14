@@ -97,7 +97,7 @@ var _ = Describe("InventoryAggregate", func() {
 			SKU:          "test-sku",
 			Timestamp:    time.Now().Unix(),
 			TotalWeight:  300,
-			UPC:          123456789012,
+			UPC:          "123456789012",
 			WasteWeight:  12,
 		}
 		marshalInv, err := json.Marshal(mockInv)
@@ -164,6 +164,7 @@ var _ = Describe("InventoryAggregate", func() {
 				GroupName:    "agginv.test.group.1",
 				Topics:       []string{producerResponseTopic},
 			})
+			Expect(err).ToNot(HaveOccurred())
 			msgCallback := func(msg *sarama.ConsumerMessage) bool {
 				defer GinkgoRecover()
 				kr := &model.KafkaResponse{}
@@ -193,6 +194,156 @@ var _ = Describe("InventoryAggregate", func() {
 
 			handler := &msgHandler{msgCallback}
 			c.Consume(context.Background(), handler)
+			Expect(err).ToNot(HaveOccurred())
+
+			close(done)
+		}, 20)
+
+		It("should query record with given timestamp", func(done Done) {
+			Byf("Producing MockEvent")
+			p, err := kafka.NewProducer(&kafka.ProducerConfig{
+				KafkaBrokers: kafkaBrokers,
+			})
+			Expect(err).ToNot(HaveOccurred())
+			marshalEvent, err := json.Marshal(mockEvent)
+			Expect(err).ToNot(HaveOccurred())
+			p.Input() <- kafka.CreateMessage(eventsTopic, marshalEvent)
+
+			Byf("Creating query args")
+			mockTime := time.Unix(mockInv.Timestamp, 0)
+			queryArgs := inventory.TimeConstraints{
+				Start: mockTime.Add(-5 * time.Second).Unix(),
+				End:   mockTime.Add(5 * time.Second).Unix(),
+			}
+			marshalQuery, err := json.Marshal(queryArgs)
+			Expect(err).ToNot(HaveOccurred())
+
+			Byf("Creating query MockEvent")
+			uuid, err := uuuid.NewV4()
+			Expect(err).ToNot(HaveOccurred())
+			mockEvent.EventAction = "query"
+			mockEvent.ServiceAction = "timestamp"
+			mockEvent.Data = marshalQuery
+			mockEvent.NanoTime = time.Now().UnixNano()
+			mockEvent.UUID = uuid
+
+			Byf("Producing MockEvent")
+			p, err = kafka.NewProducer(&kafka.ProducerConfig{
+				KafkaBrokers: kafkaBrokers,
+			})
+			Expect(err).ToNot(HaveOccurred())
+			marshalEvent, err = json.Marshal(mockEvent)
+			Expect(err).ToNot(HaveOccurred())
+			p.Input() <- kafka.CreateMessage(eventsTopic, marshalEvent)
+
+			// Check if MockEvent was processed correctly
+			Byf("Consuming Result")
+			c, err := kafka.NewConsumer(&kafka.ConsumerConfig{
+				KafkaBrokers: kafkaBrokers,
+				GroupName:    "agginv.test.group.1",
+				Topics:       []string{producerResponseTopic},
+			})
+			Expect(err).ToNot(HaveOccurred())
+			msgCallback := func(msg *sarama.ConsumerMessage) bool {
+				defer GinkgoRecover()
+				kr := &model.KafkaResponse{}
+				err := json.Unmarshal(msg.Value, kr)
+				Expect(err).ToNot(HaveOccurred())
+
+				if kr.UUID == mockEvent.UUID {
+					Expect(kr.Error).To(BeEmpty())
+					Expect(kr.ErrorCode).To(BeZero())
+					Expect(kr.CorrelationID).To(Equal(mockEvent.CorrelationID))
+					Expect(kr.UUID).To(Equal(mockEvent.UUID))
+
+					result := []inventory.Inventory{}
+					err = json.Unmarshal(kr.Result, &result)
+					Expect(err).ToNot(HaveOccurred())
+
+					for _, r := range result {
+						if r.ItemID == mockInv.ItemID {
+							mockInv.ID = r.ID
+							Expect(r).To(Equal(*mockInv))
+							return true
+						}
+					}
+				}
+				return false
+			}
+
+			handler := &msgHandler{msgCallback}
+			err = c.Consume(context.Background(), handler)
+			Expect(err).ToNot(HaveOccurred())
+
+			close(done)
+		}, 20)
+
+		It("should query record with given count", func(done Done) {
+			Byf("Producing MockEvent")
+			p, err := kafka.NewProducer(&kafka.ProducerConfig{
+				KafkaBrokers: kafkaBrokers,
+			})
+			Expect(err).ToNot(HaveOccurred())
+			marshalEvent, err := json.Marshal(mockEvent)
+			Expect(err).ToNot(HaveOccurred())
+			p.Input() <- kafka.CreateMessage(eventsTopic, marshalEvent)
+
+			Byf("Creating query args")
+			// Get 3 records
+			marshalQuery, err := json.Marshal(3)
+			Expect(err).ToNot(HaveOccurred())
+
+			Byf("Creating query MockEvent")
+			uuid, err := uuuid.NewV4()
+			Expect(err).ToNot(HaveOccurred())
+			mockEvent.EventAction = "query"
+			mockEvent.ServiceAction = "count"
+			mockEvent.Data = marshalQuery
+			mockEvent.NanoTime = time.Now().UnixNano()
+			mockEvent.UUID = uuid
+
+			Byf("Producing MockEvent")
+			p, err = kafka.NewProducer(&kafka.ProducerConfig{
+				KafkaBrokers: kafkaBrokers,
+			})
+			Expect(err).ToNot(HaveOccurred())
+			marshalEvent, err = json.Marshal(mockEvent)
+			Expect(err).ToNot(HaveOccurred())
+			p.Input() <- kafka.CreateMessage(eventsTopic, marshalEvent)
+
+			// Check if MockEvent was processed correctly
+			Byf("Consuming Result")
+			c, err := kafka.NewConsumer(&kafka.ConsumerConfig{
+				KafkaBrokers: kafkaBrokers,
+				GroupName:    "agginv.test.group.1",
+				Topics:       []string{producerResponseTopic},
+			})
+			Expect(err).ToNot(HaveOccurred())
+			msgCallback := func(msg *sarama.ConsumerMessage) bool {
+				defer GinkgoRecover()
+				kr := &model.KafkaResponse{}
+				err := json.Unmarshal(msg.Value, kr)
+				Expect(err).ToNot(HaveOccurred())
+
+				if kr.UUID == mockEvent.UUID {
+					Expect(kr.Error).To(BeEmpty())
+					Expect(kr.ErrorCode).To(BeZero())
+					Expect(kr.CorrelationID).To(Equal(mockEvent.CorrelationID))
+					Expect(kr.UUID).To(Equal(mockEvent.UUID))
+
+					result := []inventory.Inventory{}
+					err = json.Unmarshal(kr.Result, &result)
+					Expect(err).ToNot(HaveOccurred())
+					Expect(result).ToNot(BeEmpty())
+					log.Println(string(kr.Result))
+					return true
+				}
+				return false
+			}
+
+			handler := &msgHandler{msgCallback}
+			err = c.Consume(context.Background(), handler)
+			Expect(err).ToNot(HaveOccurred())
 
 			close(done)
 		}, 20)
