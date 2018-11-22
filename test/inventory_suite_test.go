@@ -93,7 +93,7 @@ var _ = Describe("InventoryAggregate", func() {
 			Origin:       "test-origin",
 			Price:        13.4,
 			RSCustomerID: rsCustomerID,
-			SalePrice:    12.23,
+			// SalePrice:    12.23,
 			SKU:          "test-sku",
 			Timestamp:    time.Now().Unix(),
 			TotalWeight:  300,
