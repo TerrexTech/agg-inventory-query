@@ -11,15 +11,16 @@ import (
 	"github.com/pkg/errors"
 )
 
-func queryInventory(
-	collection *mongo.Collection,
-	event *model.Event,
-	findopts ...findopt.Find,
-) *model.KafkaResponse {
-	filter := map[string]interface{}{}
+// TimeConstraints is the parameter for querying inventory by stat-time and end-time.
+type FlashOrSale struct {
+	Field  string  `json:"field,omitempty"`
+	Weight float64 `json:"weight,omitempty"`
+	Count  int     `json:"count,omitempty"`
+}
 
-	log.Println(event.Data)
-	err := json.Unmarshal(event.Data, &filter)
+func queryFlashOrSale(collection *mongo.Collection, event *model.Event) *model.KafkaResponse {
+	flashOrSale := &FlashOrSale{}
+	err := json.Unmarshal(event.Data, &flashOrSale)
 	if err != nil {
 		err = errors.Wrap(err, "Query: Error while unmarshalling Event-data")
 		log.Println(err)
@@ -34,10 +35,9 @@ func queryInventory(
 		}
 	}
 
-	log.Println(len(filter))
-	if len(filter) == 0 {
-		err = errors.New("blank filter provided")
-		err = errors.Wrap(err, "Query")
+	if flashOrSale.Weight < 1 {
+		err = errors.New("blank weight provided")
+		err = errors.Wrap(err, "QueryFlashOrSale")
 		log.Println(err)
 		return &model.KafkaResponse{
 			AggregateID:   event.AggregateID,
@@ -50,26 +50,14 @@ func queryInventory(
 		}
 	}
 
-	log.Println(filter)
-	result, err := collection.Find(filter, findopts...)
-	log.Println(result)
-	if err != nil {
-		err = errors.Wrap(err, "Query: Error in DeleteMany")
-		log.Println(err)
-		return &model.KafkaResponse{
-			AggregateID:   event.AggregateID,
-			CorrelationID: event.CorrelationID,
-			Error:         err.Error(),
-			ErrorCode:     DatabaseError,
-			EventAction:   event.EventAction,
-			ServiceAction: event.ServiceAction,
-			UUID:          event.UUID,
-		}
+	filter := map[string]interface{}{
+		flashOrSale.Field: map[string]interface{}{
+			"$gt": flashOrSale.Weight,
+		},
 	}
-
-	resultMarshal, err := json.Marshal(result)
+	eventData, err := json.Marshal(filter)
 	if err != nil {
-		err = errors.Wrap(err, "Query: Error marshalling Inventory Delete-result")
+		err = errors.Wrap(err, "Error marshalling TimeConstraint-filter")
 		log.Println(err)
 		return &model.KafkaResponse{
 			AggregateID:   event.AggregateID,
@@ -81,13 +69,16 @@ func queryInventory(
 			UUID:          event.UUID,
 		}
 	}
+	event.Data = eventData
 
-	return &model.KafkaResponse{
-		AggregateID:   event.AggregateID,
-		CorrelationID: event.CorrelationID,
-		EventAction:   event.EventAction,
-		Result:        resultMarshal,
-		ServiceAction: event.ServiceAction,
-		UUID:          event.UUID,
-	}
+	count := flashOrSale.Count
+	// if count < 1 {
+	// 	count = 50
+	// } else if count == 50 {
+	// 	count = 50
+	// } else if count == 100 {
+	// 	count = 100
+	// }
+	findopts := findopt.Limit(int64(count))
+	return queryInventory(collection, event, findopts)
 }
