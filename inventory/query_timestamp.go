@@ -18,10 +18,7 @@ type TimeConstraints struct {
 	Count int   `json:"count,omitempty"`
 }
 
-func queryTimestamp(
-	collection *mongo.Collection,
-	event *model.Event,
-) *model.KafkaResponse {
+func queryTimestamp(collection *mongo.Collection, event *model.Event) *model.KafkaResponse {
 	timeCtnt := &TimeConstraints{}
 	err := json.Unmarshal(event.Data, &timeCtnt)
 	if err != nil {
@@ -91,11 +88,13 @@ func queryTimestamp(
 	event.Data = eventData
 
 	count := timeCtnt.Count
-	if count < 1 {
-		count = 50
-	} else if count > 100 {
-		count = 100
-	}
+	// if count < 1 {
+	// 	count = 50
+	// } else if count == 50 {
+	// 	count = 50
+	// } else if count == 100 {
+	// 	count = 100
+	// }
 	findopts := findopt.Limit(int64(count))
 	return queryInventory(collection, event, findopts)
 }
